@@ -18,7 +18,7 @@ route('history', function(){
     const q = val('hSearch').toLowerCase(), ty = document.getElementById('hType').value, dt = val('hDate');
     const rows = State.tx.filter(t=>{
       if(q && !t.desc.toLowerCase().includes(q) && !t.id.toLowerCase().includes(q)) return false;
-      if(ty){ const kind = (t.type==='mid'||t.cat==='Transfer') ? 'mid' : t.type; if(kind!==ty) return false; }
+      if(ty && t.type!==ty) return false;
       if(dt && t.date!==dt) return false;
       return true;
     });

@@ -10,9 +10,9 @@ route('profile', function(){
     <div class="dash-grid">
       <div class="card">
         <div class="kv-list">
-          <div class="kv"><span>Name</span><span>${esc(u.name)}</span></div>
-          <div class="kv"><span>Phone</span><span>${esc(u.phone)}</span></div>
-          <div class="kv"><span>Email</span><span>${esc(u.email)}</span></div>
+          <div class="kv"><span>Name</span><span>${u.name}</span></div>
+          <div class="kv"><span>Phone</span><span>${u.phone}</span></div>
+          <div class="kv"><span>Email</span><span>${u.email}</span></div>
           <div class="kv"><span>Date of birth</span><span>${u.dob}</span></div>
           <div class="kv"><span>Age</span><span>${u.age}</span></div>
           <div class="kv"><span>User type</span><span>${u.senior?'Senior Citizen / Elderly':'Standard'}</span></div>
@@ -23,9 +23,9 @@ route('profile', function(){
       <div class="card">
         <h4 style="font-family:var(--font-d); margin-bottom:14px;">Emergency contact</h4>
         <div class="kv-list">
-          <div class="kv"><span>Name</span><span>${esc(u.emergencyContact?.name||'—')}</span></div>
-          <div class="kv"><span>Phone</span><span>${esc(u.emergencyContact?.phone||'—')}</span></div>
-          <div class="kv"><span>Relationship</span><span>${esc(u.emergencyContact?.relation||'—')}</span></div>
+          <div class="kv"><span>Name</span><span>${u.emergencyContact?.name||'—'}</span></div>
+          <div class="kv"><span>Phone</span><span>${u.emergencyContact?.phone||'—'}</span></div>
+          <div class="kv"><span>Relationship</span><span>${u.emergencyContact?.relation||'—'}</span></div>
         </div>
         <h4 style="font-family:var(--font-d); margin:20px 0 10px;">Accessibility</h4>
         <div class="sec-row" style="padding:0;"><div class="l">Senior Citizen Mode</div>

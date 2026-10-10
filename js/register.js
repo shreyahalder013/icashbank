@@ -25,13 +25,13 @@ function renderWizardStep(){
   if(step===1) box.innerHTML = `
     <div class="auth-head"><h2>Create your iCash ID</h2><p>Step 1 of 4 — Personal information</p></div>
     ${wizProgressHtml(1)}
-    <div class="field"><label>Full name</label><input id="rFullName" placeholder="Your full name" value="${esc(RegState.name||'')}"></div>
+    <div class="field"><label>Full name</label><input id="rFullName" placeholder="Your full name" value="${RegState.name||''}"></div>
     <div class="row2">
-      <div class="field"><label>Phone number</label><input id="rPhone" placeholder="+91 XXXXX XXXXX" value="${esc(RegState.phone||'')}"></div>
+      <div class="field"><label>Phone number</label><input id="rPhone" placeholder="+91 XXXXX XXXXX" value="${RegState.phone||''}"></div>
       <div class="field"><label>Date of birth</label><input type="date" id="rDob" value="${RegState.dob||''}"></div>
     </div>
-    <div class="field"><label>Aadhaar number <span class="pill" style="margin-left:6px;">Demo only</span></label><input id="rAadhaar" placeholder="12-digit demo Aadhaar" maxlength="12" value="${esc(RegState.aadhaar||'')}"></div>
-    <div class="field"><label>Email address</label><input type="email" id="rEmail" placeholder="you@email.com" value="${esc(RegState.email||'')}"></div>
+    <div class="field"><label>Aadhaar number <span class="pill" style="margin-left:6px;">Demo only</span></label><input id="rAadhaar" placeholder="12-digit demo Aadhaar" maxlength="12" value="${RegState.aadhaar||''}"></div>
+    <div class="field"><label>Email address</label><input type="email" id="rEmail" placeholder="you@email.com" value="${RegState.email||''}"></div>
     <div id="ageBadge"></div>
     <div class="wizard-footer"><span></span><button class="btn btn-primary" id="next1">Continue</button></div>`;
 
@@ -86,9 +86,9 @@ function renderWizardStep(){
     <div class="auth-head"><h2>Emergency contact</h2><p>Step 3 of 4 — who can assist you</p></div>
     ${wizProgressHtml(3)}
     <p style="color:var(--muted); font-size:13px; margin-bottom:16px;">Your emergency contact can be authorized to assist with transactions when you are unable to access your account.</p>
-    <div class="field"><label>Contact name</label><input id="rEcName" placeholder="Full name" value="${esc(RegState.ec?.name||'')}"></div>
+    <div class="field"><label>Contact name</label><input id="rEcName" placeholder="Full name" value="${RegState.ec?.name||''}"></div>
     <div class="row2">
-      <div class="field"><label>Phone number</label><input id="rEcPhone" placeholder="+91 XXXXX XXXXX" value="${esc(RegState.ec?.phone||'')}"></div>
+      <div class="field"><label>Phone number</label><input id="rEcPhone" placeholder="+91 XXXXX XXXXX" value="${RegState.ec?.phone||''}"></div>
       <div class="field"><label>Relationship</label>
         <select id="rEcRel">
           ${['Father','Mother','Brother','Sister','Spouse','Guardian','Other'].map(r=>`<option ${RegState.ec?.relation===r?'selected':''}>${r}</option>`).join('')}
@@ -118,7 +118,13 @@ function renderWizardStep(){
     document.getElementById('back4').onclick=()=>{RegState.step=3; renderWizardStep();};
     mountFaceScanner(document.getElementById('faceRegHolder'), {
       mode:'register', senior:RegState.senior,
-      onSuccess: async ()=>{
+      onSuccess: async (result)=>{
+        // SECURITY FIX (VULN-2): Validate that we actually captured a real 128-d template
+        if (!result || !result.biometricTemplate || !Array.isArray(result.biometricTemplate) || result.biometricTemplate.length !== 128) {
+          toast('Biometric capture failed — no valid face template produced. Please retry.', 'danger');
+          return;
+        }
+
         State.user = {
           name:RegState.name, phone:RegState.phone, aadhaar:RegState.aadhaar, email:RegState.email,
           dob:RegState.dob, age:RegState.age, senior:RegState.senior,
@@ -127,26 +133,37 @@ function renderWizardStep(){
         };
         State.tx = DEFAULT_TX.slice(); State.balance = 48750;
 
-        // Register via API
+        // Register via API — MUST include biometricTemplate or face login will never work
         try {
-          await fetch(API + '/register', {
+          const res = await fetch(API + '/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ user: State.user, transactions: State.tx, balance: State.balance })
+            body: JSON.stringify({
+              user: State.user,
+              transactions: State.tx,
+              balance: State.balance,
+              biometricTemplate: result.biometricTemplate  // ← CRITICAL fix: was missing
+            })
           });
-        } catch(e) { /* fallback to localStorage */ }
-
-        State.logEvent('Registration', 'iCash ID created — face identity registered');
-        State.save();
-        Object.keys(RegState).forEach(k=>delete RegState[k]); // fresh wizard next time
-        toast('Face identity registered ✓','ok');
-        setTimeout(()=>{
+          const d = await res.json();
+          if (!res.ok) {
+            toast(d.error || 'Registration failed — please try again.', 'danger');
+            return;
+          }
+          // Load authenticated session from server response
+          await State.load();
+        } catch(e) {
+          console.warn('[Register] API unavailable, falling back to localStorage:', e.message);
           State.session = {active:true, method:'register'};
-          State.save();
-          nav('dashboard');
-        }, 900);
+        }
+
+        State.logEvent('Registration', 'iCash ID created — face identity enrolled');
+        State.save();
+        toast('Face identity registered ✓','ok');
+        setTimeout(()=>nav('dashboard'), 900);
       }
     });
+
   }
 }

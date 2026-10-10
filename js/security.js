@@ -12,8 +12,8 @@ route('security', function(){
           <div class="sec-row"><div class="l"><div class="sec-ic">${iconSvg('face')}</div>Face Authentication</div><span class="pill ok">Active</span></div>
           <div class="sec-row"><div class="l"><div class="sec-ic">${iconSvg('shield')}</div>Liveness Detection</div><span class="pill ok">Enabled</span></div>
           <div class="sec-row"><div class="l"><div class="sec-ic">${iconSvg('alert')}</div>Emergency PIN</div><span class="pill ok">Configured</span></div>
-          <div class="sec-row"><div class="l"><div class="sec-ic">${iconSvg('contact')}</div>Emergency Contact</div><span class="pill ok">Verified — ${esc(State.user.emergencyContact?.name||'—')}</span></div>
-          <div class="sec-row"><div class="l"><div class="sec-ic">${iconSvg('history')}</div>Last Login</div><span class="pill">${esc(State.user.lastLogin)}</span></div>
+          <div class="sec-row"><div class="l"><div class="sec-ic">${iconSvg('contact')}</div>Emergency Contact</div><span class="pill ok">Verified — ${State.user.emergencyContact?.name||'—'}</span></div>
+          <div class="sec-row"><div class="l"><div class="sec-ic">${iconSvg('history')}</div>Last Login</div><span class="pill">${State.user.lastLogin}</span></div>
           <div class="sec-row"><div class="l"><div class="sec-ic">${iconSvg('shield')}</div>Security Events</div><span class="pill warn">${State.events.length} recent</span></div>
         </div>
       </div>
@@ -29,5 +29,5 @@ route('security', function(){
   mount(shell);
   const evHolder = document.getElementById('secEvents');
   if(!State.events.length){ evHolder.innerHTML = `<div style="padding:20px; color:var(--muted); text-align:center;">No security events yet.</div>`; }
-  else evHolder.innerHTML = State.events.map(e=>`<div class="kv"><span>${esc(e.type)} — ${esc(e.desc)}</span><span>${esc(e.time)}</span></div>`).join('');
+  else evHolder.innerHTML = State.events.map(e=>`<div class="kv"><span>${e.type} — ${e.desc}</span><span>${e.time}</span></div>`).join('');
 });

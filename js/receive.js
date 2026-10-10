@@ -4,12 +4,12 @@
 route('receive', function(){
   if(!requireAuth()) return;
   navbar();
-  const icashId = ((State.user.name||'user').toLowerCase().replace(/[^a-z]/g,'') || 'user') + '@icash';
+  const icashId = (State.user.name||'user').toLowerCase().replace(/[^a-z]/g,'') + '@icash';
   const shell = el(`<div class="auth-shell"><div class="glass auth-card" id="rcBox">
     <div class="auth-head"><h2>Receive money</h2><p>Share your iCash ID or QR code</p></div>
     <div class="qr-box"><canvas id="qrCanvas" width="200" height="200"></canvas></div>
     <div style="text-align:center; margin-bottom:18px;">
-      <div style="font-family:var(--font-d); font-size:16px;">${esc(State.user.name)}</div>
+      <div style="font-family:var(--font-d); font-size:16px;">${State.user.name}</div>
       <div style="color:var(--accent); font-size:13.5px;">${icashId}</div>
     </div>
     <div class="field"><label>Request amount (optional)</label><input id="rcAmt" type="number" placeholder="₹0"></div>

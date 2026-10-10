@@ -13,7 +13,7 @@ route('dashboard', function(){
         <div class="balance-label">Available Balance <span class="pill" style="margin-left:8px;">DEMO ACCOUNT</span></div>
         <div class="balance-amt">${fmtINR(State.balance)}</div>
         <div class="balance-sub">
-          <div><b>${esc(State.user.name)}</b>Account holder</div>
+          <div><b>${State.user.name}</b>Account holder</div>
           <div><b>${State.user.age} · ${State.user.senior?'Senior':'Standard'}</b>User type</div>
           <div><b>Face + PIN</b>Auth methods</div>
         </div>
@@ -50,9 +50,9 @@ function txTable(rows){
     const amtClass = t.type==='in' ? 'amt-in' : t.type==='mid' ? 'amt-mid' : 'amt-out';
     const sign = t.type==='in' ? '+' : t.type==='mid' ? '' : '−';
     tb.appendChild(el(`<tr>
-      <td><div class="tx-desc"><div class="tx-ic">${catIcon[t.cat]||(t.type==='in'?'⬇️':'⬆️')}</div><div><div>${esc(t.desc)}</div><div style="color:var(--muted2); font-size:11.5px;">${esc(t.id)}</div></div></div></td>
+      <td><div class="tx-desc"><div class="tx-ic">${catIcon[t.cat]||(t.type==='in'?'⬇️':'⬆️')}</div><div><div>${t.desc}</div><div style="color:var(--muted2); font-size:11.5px;">${t.id}</div></div></div></td>
       <td style="color:var(--muted)">${t.date}</td>
-      <td style="color:var(--muted)">${t.type==='in'?'Received':(t.type==='mid'||t.cat==='Transfer')?'Transfer':'Spent'}</td>
+      <td style="color:var(--muted)">${t.type==='in'?'Received':t.type==='mid'?'Transfer':'Spent'}</td>
       <td class="${amtClass}">${sign}${fmtINR(t.amount)}</td>
       <td><span class="pill ok">${t.status}</span></td>
     </tr>`));

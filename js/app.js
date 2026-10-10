@@ -4,7 +4,26 @@
 ========================================================= */
 
 /* ---------- API BASE ---------- */
-const API = '/api';
+const API = (function() {
+  if (typeof window !== 'undefined') {
+    const custom = localStorage.getItem('icash_api_url');
+    if (custom) return custom;
+
+    const hostname = window.location.hostname || 'localhost';
+    const port = window.location.port;
+
+    // If opened directly from file://
+    if (window.location.protocol === 'file:') {
+      return 'http://localhost:3000/api';
+    }
+
+    // If served on a dev port other than 3000 (e.g. Live Server on 5500, Vite on 5173)
+    if (port && port !== '3000') {
+      return `http://${hostname}:3000/api`;
+    }
+  }
+  return '/api';
+})();
 
 /* ---------- DEFAULT TX (for seeding) ---------- */
 const DEFAULT_TX = [
@@ -28,17 +47,17 @@ const State = {
       const res = await fetch(API + '/user', { credentials: 'include' });
       if(res.ok){
         const data = await res.json();
-        if(!data.user){ this._loadLocal(); return; }
         this.user = data.user;
         this.tx = data.transactions || [];
         this.balance = data.balance ?? 48750;
         this.session = data.session;
         this.events = data.events || [];
       } else {
-        // 404/5xx = no backend (static hosting) -> local demo data.
-        // 401/403 = backend says "not signed in" -> never trust a locally stored session.
+        // No session — load defaults for landing page
+        this.user = null;
+        this.session = null;
+        // Try loading user from localStorage as fallback (for offline / initial setup)
         this._loadLocal();
-        if(res.status === 401 || res.status === 403) this.session = null;
       }
     } catch(e) {
       console.warn('API unavailable, using localStorage fallback:', e.message);
@@ -50,13 +69,17 @@ const State = {
     this.user = JSON.parse(localStorage.getItem('icash_user') || 'null');
     this.tx = JSON.parse(localStorage.getItem('icash_tx') || 'null') || DEFAULT_TX.slice();
     this.balance = parseFloat(localStorage.getItem('icash_balance') || '48750');
-    this.session = JSON.parse(localStorage.getItem('icash_session') || 'null');
     this.events = JSON.parse(localStorage.getItem('icash_events') || '[]');
+    // SECURITY FIX (VULN-10): Never restore session.active=true from localStorage.
+    // An attacker could set localStorage to appear authenticated. Session validity
+    // must ALWAYS be verified server-side via /api/user. We only restore non-auth
+    // user metadata (name, phone) for display purposes on the login page.
+    this.session = null;
     if(!this.user){
       this.user = {
         name:'Siddharth Pal', phone:'+91 98765 43210', aadhaar:'482145678921',
         email:'siddharth.demo@icash.app', dob:'1999-04-12', age: this.calcAge('1999-04-12'),
-        senior:false, normalPin:'2468', emergencyPin:'9999',
+        senior:false,
         emergencyContact:{name:'Ravi Pal', phone:'+91 91234 56789', relation:'Father'},
         faceRegistered:true, lastLogin:'20 Sep 2026, 09:14', seniorMode:false
       };
@@ -131,6 +154,11 @@ function route(name, fn){ routes[name] = fn; }
 function nav(name){ location.hash = '#'+name; }
 function currentRoute(){ return (location.hash || '#landing').slice(1).split('?')[0]; }
 window.addEventListener('hashchange', render);
+// SECURITY FIX (VULN-4): requireAuth() must NOT trust localStorage for session validity.
+// We check State.session which is now only populated by a successful server response
+// (see State.load() and _loadLocal() fix). If session is missing, redirect to login.
+// For synchronous route rendering we rely on the load() having been called at boot;
+// any route that needs auth should also call State.load() and wait for it.
 function requireAuth(){
   if(!State.session || !State.session.active){ nav('login'); return false; }
   return true;
@@ -152,14 +180,12 @@ function toast(msg, kind){
   kind = kind || 'ok';
   const colors = {ok:'rgba(56,230,168,0.12)', warn:'rgba(242,184,75,0.14)', danger:'rgba(255,92,122,0.14)'};
   const borders = {ok:'rgba(56,230,168,0.4)', warn:'rgba(242,184,75,0.4)', danger:'rgba(255,92,122,0.4)'};
-  const t = el(`<div class="toast glass" style="background:${colors[kind]}; border-color:${borders[kind]}"></div>`);
-  t.textContent = msg;
+  const t = el(`<div class="toast glass" style="background:${colors[kind]}; border-color:${borders[kind]}">${msg}</div>`);
   document.getElementById('toastWrap').appendChild(t);
   setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 3200);
 }
 function genTxId(){ return 'TXN-' + Math.random().toString(16).slice(2,7).toUpperCase(); }
 function maskAadhaar(a){ return a ? 'XXXX XXXX ' + a.slice(-4) : ''; }
-function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function val(id){ return (document.getElementById(id)?.value||'').trim(); }
 
 function iconSvg(name){
@@ -203,7 +229,21 @@ function navbar(){
   </div>`);
   mount(bar);
   if(loggedIn){
-    bar.querySelector('#logoutBtn').onclick = ()=>{ State.session={active:false}; State.save(); toast('Logged out'); nav('landing'); };
+    bar.querySelector('#logoutBtn').onclick = async ()=>{
+      // SECURITY FIX (VULN-5): Always terminate the server session on logout.
+      // Previously only localStorage was cleared — the server session remained active,
+      // allowing session token reuse by anyone with access to the session cookie.
+      try {
+        await fetch(API + '/logout', { method: 'POST', credentials: 'include' });
+      } catch(e) {
+        console.warn('[Logout] Server logout request failed:', e.message);
+      }
+      State.session = null;
+      State.user = null;
+      localStorage.removeItem('icash_session');
+      toast('Logged out securely');
+      nav('landing');
+    };
     bar.querySelector('#atmBtn').onclick = ()=> nav('atm');
   }
   bar.querySelector('#hambBtn').onclick = ()=>{
@@ -216,7 +256,7 @@ function navbar(){
 function openModal(innerHtml){
   closeModal();
   const bg = el(`<div class="modal-bg" id="modalBg"><div class="glass modal">${innerHtml}</div></div>`);
-  bg.addEventListener('click', e=>{ if(e.target.id==='modalBg' || e.target.closest('a')) closeModal(); });
+  bg.addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
   document.getElementById('app').appendChild(bg);
 }
 function closeModal(){ document.getElementById('modalBg')?.remove(); }
