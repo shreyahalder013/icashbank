@@ -128,15 +128,6 @@ Once the server is running, access the interfaces in your browser:
 - **Banking Portal:** [http://localhost:3000/icash.html](http://localhost:3000/icash.html)
 - **Biometric HUD Scanner:** [http://localhost:3000/face-auth-hud.html](http://localhost:3000/face-auth-hud.html)
 
----
-
-## 👤 Demo Credentials
-
-| Role | Details |
-|---|---|
-| **Demo User** | Siddharth Pal (`+91 98765 43210`) |
-| **Normal PIN** | `2468` |
-| **Emergency Duress PIN** | `9999` *(Triggers silent duress mode & security notification)* |
 
 ---
 
